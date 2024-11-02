@@ -15,7 +15,7 @@ export const initSignClient = async (
   rpcUrl: string = "https://rpc.orai.io",
   prefix: string = "orai",
   denom: string = "orai",
-  gasFee: string = "0.001"
+  gasFee: string = "0.003"
 ) => {
   const wallet = await DirectSecp256k1HdWallet.fromMnemonic(mnemonic, {
     // hdPaths: [stringToPath(chain.HD_PATH || "m/44'/118'/0'/0/0")],
