@@ -31,7 +31,7 @@
   },
   "devDependencies": {
     "@babel/traverse": "7.24.1",
-    "@oraichain/cw-simulate": "^2.8.103",
+    "@oraichain/cw-simulate": "^2.8.104",
     "@swc/core": "^1.4.11",
     "@swc/jest": "^0.2.36",
     "@types/jest": "^29.5.12",

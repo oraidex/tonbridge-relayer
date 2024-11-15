@@ -41,14 +41,11 @@ export class CosmwasmBridgeParser implements ICosmwasmParser<Packets> {
     const allBridgeData = txs
       .filter(filterOutSuccessTx)
       .flatMap((tx) => {
-        const logs: Log[] = JSON.parse(tx.rawLog);
-        return logs.map((log) =>
-          this.extractEventToPacketDtos(
-            log.events,
-            tx.hash,
-            tx.height,
-            tx.timestamp
-          )
+        return this.extractEventToPacketDtos(
+          tx.events,
+          tx.hash,
+          tx.height,
+          tx.timestamp
         );
       })
       .filter(
@@ -129,7 +126,7 @@ export class CosmwasmWatcher<T> extends EventEmitter {
       this.syncData.destroy();
     }
     this.running = true;
-    await this.syncData.start();
+    this.syncData.startSpecificService("polling");
     this.syncData.on(CHANNEL.QUERY, async (chunk: Txs) => {
       try {
         const parsedData = this.cosmwasmParser.processChunk(chunk) as Packets;
@@ -325,6 +322,7 @@ export const createCosmosBridgeWatcher = async (config: Config) => {
     syncDataOpt.offset = config.syncBlockOffSet;
   }
   const syncData = new SyncData(syncDataOpt);
+  await syncData.initClient();
   const bridgeParser = new CosmwasmBridgeParser(config.wasmBridge);
   const cosmwasmWatcher = new CosmwasmWatcher(syncData, bridgeParser);
   return cosmwasmWatcher;
