@@ -18,7 +18,7 @@ export type Config = {
 export function loadConfig(): Config {
   const cwToTon: CwToTonConfig = {
     tonMnemonic: process.env.TON_MNEMONIC || "",
-    cosmosRpcUrl: process.env.COSMOS_RPC_URL || "https://rpc.orai.io/",
+    cosmosRpcUrl: process.env.COSMOS_RPC_URL || "https://indexer.orai.io/",
     syncBlockOffSet: Number(process.env.SYNC_BLOCK_OFFSET || 20000000),
     syncLimit: Number(process.env.SYNC_LIMIT || 50),
     syncThreads: Number(process.env.SYNC_THREADS || 4),
