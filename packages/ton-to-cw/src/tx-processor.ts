@@ -47,6 +47,10 @@ export default class TonTxProcessor {
     while (true) {
       this.logger.info("Current processing tx hash: " + offset.hash);
       // workaround. Bug of loadTransaction that causes the prev trans hash to be incomplete
+      if (!offset.hash)
+        throw new Error(
+          "Offset hash is undefined. Re-processing this transaction batch!"
+        );
       if (offset.hash.length < 64) {
         this.logger.error(
           "TonTxProcessor queryUnprocessedTransactions offset hash length < 64: " +
