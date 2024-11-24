@@ -90,10 +90,9 @@ export default class TonTxProcessor {
       if (indexOf === -1) {
         const oldestTx = txs[txs.length - 1].tx;
         if (!oldestTx.prevTransactionHash) {
-          this.logger.error(
+          throw new Error(
             "TonTxProcessor queryUnprocessedTransactions new offset hash is undefined"
           );
-          continue;
         }
         transactions.push(...txs);
         // increase offset and continue querying txs until we find our oldest transaction that we can remember
