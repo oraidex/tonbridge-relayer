@@ -52,7 +52,6 @@ export default class TonToCwRelayer {
         this.logger.info("Masterchain: " + latestMasterchainBlock.last.seqno);
         this.logger.info("Keyblock: " + parsedBlock.info.seq_no);
         await this.verifyMasterchainKeyBlock(rawBlockData);
-        await this.storeKeyBlockNextValSet(rawBlockData, parsedBlock);
         await this.txProcessor.processTransactions(latestMasterchainBlock.last);
       } catch (error) {
         // do nothing since we already catch the error in individual methods
@@ -86,20 +85,6 @@ export default class TonToCwRelayer {
     } catch (error) {
       this.logger.error("Error verifyMasterchainKeyBlock: " + error);
       throw error;
-    }
-  }
-
-  private async storeKeyBlockNextValSet(
-    rawBlockData: liteServer_BlockData,
-    parsedBlock: ParsedBlock
-  ) {
-    try {
-      return await this.blockProcessor.storeKeyBlockNextValSet(
-        rawBlockData,
-        parsedBlock
-      );
-    } catch (error) {
-      this.logger.error("Error storeKeyBlockNextValSet: ", error);
     }
   }
 }

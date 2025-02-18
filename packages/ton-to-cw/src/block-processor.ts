@@ -33,6 +33,21 @@ export default class TonBlockProcessor {
     protected logger: Logger
   ) {}
 
+  async isBlockVerified(rootHash: Buffer) {
+    try {
+      const isBlockVerified = await this.validator.isVerifiedBlock({
+        rootHash: rootHash.toString("hex"),
+      });
+
+      return isBlockVerified;
+    } catch (error) {
+      this.logger.error(
+        `Error querying block verification status: ${JSON.stringify(error)}`
+      );
+      return false;
+    }
+  }
+
   async queryKeyBlock(masterChainSeqNo: number) {
     let initBlockSeqno = masterChainSeqNo;
     while (true) {
@@ -158,9 +173,7 @@ export default class TonBlockProcessor {
   }
 
   async verifyMasterchainBlockByBlockId(blockId: BlockID) {
-    const isBlockVerified = await this.validator.isVerifiedBlock({
-      rootHash: blockId.rootHash.toString("hex"),
-    });
+    const isBlockVerified = await this.isBlockVerified(blockId.rootHash);
     if (isBlockVerified) return;
 
     const vdata = await this.getMasterchainBlockValSignatures(blockId.seqno);
@@ -178,10 +191,9 @@ export default class TonBlockProcessor {
   }
 
   async verifyMasterchainKeyBlock(rawBlockData: liteServer_BlockData) {
-    const isBlockVerified = await this.validator.isVerifiedBlock({
-      rootHash: rawBlockData.id.rootHash.toString("hex"),
-    });
-
+    const isBlockVerified = await this.isBlockVerified(
+      rawBlockData.id.rootHash
+    );
     if (isBlockVerified) return;
     const keyblockBoc = rawBlockData.data.toString("hex");
     await this.validator.prepareNewKeyBlock({
@@ -198,50 +210,6 @@ export default class TonBlockProcessor {
     });
     this.logger.info(
       `verified masterchain keyblock ${rawBlockData.id.seqno} successfully`
-    );
-  }
-
-  async storeKeyBlockNextValSet(
-    rawBlockData: liteServer_BlockData,
-    parsedBlock: ParsedBlock
-  ) {
-    const nextValidators = parsedBlock.extra.custom.config.config.map.get("24");
-    // if empty then we do nothing and wait til next end of consensus
-    if (!nextValidators) {
-      this.allValidators = [];
-      return;
-    }
-
-    const nextValSetFirstPubkey = Buffer.from(
-      nextValidators.next_validators.list.map.get("0").public_key.pubkey
-    ).toString("hex");
-    const allValidators =
-      this.allValidators.length > 0
-        ? this.allValidators
-        : await this.queryAllValidators();
-
-    // if we already updated the keyblock with next valset -> cache the valset and ignore
-    if (allValidators.some((val) => val.pubkey === nextValSetFirstPubkey)) {
-      this.allValidators = allValidators;
-      return;
-    }
-
-    const keyblockBoc = rawBlockData.data.toString("hex");
-    await this.validator.prepareNewKeyBlock({
-      keyblockBoc,
-    });
-    const vdata = await this.getMasterchainBlockValSignatures(
-      rawBlockData.id.seqno
-    );
-
-    await this.validator.verifyKeyBlock({
-      rootHash: rawBlockData.id.rootHash.toString("hex"),
-      fileHash: rawBlockData.id.fileHash.toString("hex"),
-      vdata,
-    });
-
-    this.logger.info(
-      `Updated keyblock ${rawBlockData.id.seqno} with new validator set successfully`
     );
   }
 
@@ -267,9 +235,7 @@ export default class TonBlockProcessor {
   }
 
   async verifyShardBlocks(shardId: BlockID) {
-    const isBlockVerified = await this.validator.isVerifiedBlock({
-      rootHash: shardId.rootHash.toString("hex"),
-    });
+    const isBlockVerified = await this.isBlockVerified(shardId.rootHash);
     if (isBlockVerified) return;
 
     const shardProof = await this.liteClient.engine.query(

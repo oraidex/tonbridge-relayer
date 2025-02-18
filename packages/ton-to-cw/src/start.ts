@@ -36,7 +36,13 @@ function validate() {
     format: format.combine(format.timestamp(), format.json()),
     transports: [new transports.Console()],
   });
-  const client = await initSignClient(process.env.MNEMONIC, process.env.COSMOS_RPC_URL, undefined, undefined, process.env.GAS_FEES);
+  const client = await initSignClient(
+    process.env.MNEMONIC,
+    process.env.COSMOS_RPC_URL,
+    undefined,
+    undefined,
+    process.env.GAS_FEES
+  );
   // setup lite engine server
   const { liteservers } = await fetch(
     "https://ton.org/global.config.json"
@@ -82,8 +88,7 @@ function validate() {
     liteClient,
     blockProcessor,
     JETTON_BRIDGE,
-    logger,
-    "bece09e6b5b32d1f6a209e42c608fca09ae464232cbf62ebf9f6561948c01754"
+    logger
   );
 
   const relayer = new TonToCwRelayer()
