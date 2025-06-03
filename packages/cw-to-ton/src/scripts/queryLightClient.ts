@@ -18,6 +18,7 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 (async () => {
+  console.log(process.env.COSMOS_LIGHT_CLIENT_MASTER);
   const { client, walletContract, key } = await createTonWallet(
     process.env.TON_MNEMONIC!,
     process.env.NODE_ENV as Network
@@ -26,9 +27,5 @@ dotenv.config();
     Address.parse(process.env.COSMOS_LIGHT_CLIENT_MASTER!)
   );
   const lightClientMasterContract = client.open(lightClientMaster);
-  const cosmwasmClient = await CosmWasmClient.connect(
-    process.env.COSMOS_RPC_URL!
-  );
-
   console.log("Height", await lightClientMasterContract.getTrustedHeight());
 })();
