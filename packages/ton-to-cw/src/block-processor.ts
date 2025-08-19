@@ -41,9 +41,7 @@ export default class TonBlockProcessor {
 
       return isBlockVerified;
     } catch (error) {
-      this.logger.error(
-        `Error querying block verification status: ${JSON.stringify(error)}`
-      );
+      this.logger.error(`Error querying block verification status`, error);
       return false;
     }
   }
