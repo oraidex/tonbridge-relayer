@@ -194,9 +194,13 @@ export default class TonBlockProcessor {
     );
     if (isBlockVerified) return;
     const keyblockBoc = rawBlockData.data.toString("hex");
-    await this.validator.prepareNewKeyBlock({
-      keyblockBoc,
-    });
+
+    const allCandidates = await this.queryAllValidatorCandidates();
+    if (allCandidates.length === 0) {
+      await this.validator.prepareNewKeyBlock({
+        keyblockBoc,
+      });
+    }
     const vdata = await this.getMasterchainBlockValSignatures(
       rawBlockData.id.seqno
     );
