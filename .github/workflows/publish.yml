@@ -1,64 +1,117 @@
-name: Build and push ton-relayer server to Docker Hub
+name: Deploy prod
 
 on:
-  workflow_dispatch:
-    branches:
-      - master
-      - staging
-
   push:
     tags:
-      - "v*"
-      - "v*-beta"
-
-env:
-  NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - v[0-9]+.[0-9]+.[0-9]+
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to deploy"
+        required: true
+        default: "v1.0.0"
 
 jobs:
-  docker-amd:
-    strategy:
-      matrix:
-        node: ["18.18.0"]
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+      - name: Get short sha
+        id: short_sha
+        run: |
+          echo "short_sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Set app version
+        id: app_version
+        run: |
+          temp=${{ inputs.tag || github.ref }}
+          temp=${temp#refs/tags/}
+          temp=${temp#v}
+          echo "app_version=$temp" >> $GITHUB_OUTPUT
 
       - name: Docker meta
-        id: meta
+        id: metadata
         uses: docker/metadata-action@v5
         with:
-          images: |
-            oraichain/defi_ton-bridge-relayer
+          images: ${{ vars.DOCKER_IMAGE_NAME }}
           tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,enable=true,priority=100,prefix=,suffix=,format=short
+            ${{ steps.app_version.outputs.app_version }}-${{ steps.short_sha.outputs.short_sha }}
 
       - name: Login to DockerHub
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Check if image exists
+        id: image_exists
+        run: |
+          if docker manifest inspect ${{ steps.metadata.outputs.tags }} 2>/dev/null; then
+            echo "Image exists"
+            echo "image_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "Image does not exist"
+            echo "image_exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set up QEMU
+        if: steps.image_exists.outputs.image_exists == 'false'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        if: steps.image_exists.outputs.image_exists == 'false'
+        uses: docker/setup-buildx-action@v3
+
       - name: Build and push
+        if: steps.image_exists.outputs.image_exists == 'false'
         uses: docker/build-push-action@v5
         with:
-          build-args: |
-            GIT_COMMIT=${{ env.GIT_COMMIT }}
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          push: true
+          tags: ${{ steps.metadata.outputs.tags }}
+          labels: ${{ steps.metadata.outputs.labels }}
           context: .
-          cache-from: type=registry,ref=oraichain/defi_ton-bridge-relayer:buildcache
-          cache-to: type=registry,ref=oraichain/defi_ton-bridge-relayer:buildcache,mode=max
+          cache-from: type=registry,ref=${{ vars.DOCKER_IMAGE_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ vars.DOCKER_IMAGE_NAME }}:buildcache,mode=max
           platforms: linux/amd64
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Repository Dispatch
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.DISPATCH_INFRA_DEPLOYMENT_TOKEN }}
+          repository: oraichain/infra-deployments
+          event-type: image-tag-prod
+          client-payload: '{"chart_name": "ton-bridge-relayer", "tag": "${{ env.DOCKER_METADATA_OUTPUT_VERSION }}", "target": "prod", "env": "prod"}'
+
+  notify:
+    runs-on: ubuntu-latest
+    needs: [build, deploy]
+    if: needs.build.result == 'success' && needs.deploy.result == 'success'
+    steps:
+      - name: Notify discord
+        uses: appleboy/discord-action@master
+        with:
+          webhook_id: ${{ secrets.WEBHOOK_ID }}
+          webhook_token: ${{ secrets.WEBHOOK_TOKEN }}
+          username: GitBot
+          message: Deployed ${{ github.event.repository.name }} [prod]
+
+  notify-error:
+    runs-on: ubuntu-latest
+    needs: [build, deploy]
+    if: needs.build.result != 'success' || needs.deploy.result != 'success'
+    steps:
+      - name: Notify on deploy error
+        uses: appleboy/discord-action@master
+        with:
+          webhook_id: ${{ secrets.WEBHOOK_ID }}
+          webhook_token: ${{ secrets.WEBHOOK_TOKEN }}
+          username: GitBot
+          message: ":x: Deployed ${{ github.event.repository.name }} [prod] failed <@${{ vars.PIC1 }}>"
