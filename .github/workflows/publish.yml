@@ -14,6 +14,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.metadata.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -88,7 +90,7 @@ jobs:
           token: ${{ secrets.DISPATCH_INFRA_DEPLOYMENT_TOKEN }}
           repository: oraichain/infra-deployments
           event-type: image-tag-prod
-          client-payload: '{"chart_name": "ton-bridge-relayer", "tag": "${{ env.DOCKER_METADATA_OUTPUT_VERSION }}", "target": "prod", "env": "prod"}'
+          client-payload: '{"chart_name": "ton-bridge-relayer", "tag": "${{ needs.build.outputs.version }}", "target": "prod", "env": "prod"}'
 
   notify:
     runs-on: ubuntu-latest
